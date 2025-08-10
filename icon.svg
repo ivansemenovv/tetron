@@ -1,0 +1,29 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="#1a1a2e"/>
+  
+  <!-- Grid pattern -->
+  <defs>
+    <pattern id="grid" width="51.2" height="51.2" patternUnits="userSpaceOnUse">
+      <rect width="51.2" height="51.2" fill="none" stroke="#2c3e50" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#grid)" opacity="0.3"/>
+  
+  <!-- Tetris blocks forming "T" -->
+  <!-- Vertical part of T -->
+  <rect x="256" y="256" width="102" height="102" fill="#f39c12" stroke="#000" stroke-width="4"/>
+  <rect x="358" y="256" width="102" height="102" fill="#e74c3c" stroke="#000" stroke-width="4"/>
+  <rect x="460" y="256" width="102" height="102" fill="#3498db" stroke="#000" stroke-width="4"/>
+  <rect x="562" y="256" width="102" height="102" fill="#2ecc71" stroke="#000" stroke-width="4"/>
+  <rect x="664" y="256" width="102" height="102" fill="#9b59b6" stroke="#000" stroke-width="4"/>
+  
+  <!-- Horizontal part of T -->
+  <rect x="460" y="358" width="102" height="102" fill="#00f0f0" stroke="#000" stroke-width="4"/>
+  <rect x="460" y="460" width="102" height="102" fill="#f0a000" stroke="#000" stroke-width="4"/>
+  <rect x="460" y="562" width="102" height="102" fill="#f00000" stroke="#000" stroke-width="4"/>
+  <rect x="460" y="664" width="102" height="102" fill="#00f000" stroke="#000" stroke-width="4"/>
+  
+  <!-- Text "TETRON" -->
+  <text x="512" y="900" font-family="Arial Black, sans-serif" font-size="120" font-weight="900" text-anchor="middle" fill="#f39c12" stroke="#000" stroke-width="3">TETRON</text>
+</svg>
