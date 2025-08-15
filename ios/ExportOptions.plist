@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>app-store</string>
+    <key>uploadBitcode</key>
+    <false/>
+    <key>uploadSymbols</key>
+    <true/>
+    <key>compileBitcode</key>
+    <false/>
+    <key>signingStyle</key>
+    <string>manual</string>
+    <key>teamID</key>
+    <string>YOUR_TEAM_ID</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.ivsemeno.tetron</key>
+        <string>match AppStore com.ivsemeno.tetron</string>
+    </dict>
+</dict>
+</plist>
