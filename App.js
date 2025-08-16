@@ -7,7 +7,8 @@ import {
   Dimensions,
   Alert,
   SafeAreaView,
-  Platform
+  Platform,
+  ScrollView
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -145,16 +146,33 @@ export default function App() {
     }
 
     const dropDistance = newY - piecePosition.y;
-    setScore(s => s + dropDistance * 2);
-    setPiecePosition({ ...piecePosition, y: newY });
+    setPiecePosition({ x: piecePosition.x, y: newY });
+    setScore(prev => prev + dropDistance * 2);
 
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     }
 
-    // Lock piece immediately after hard drop
-    setTimeout(() => lockPiece(), 50);
-  }, [board, currentPiece, piecePosition, isPaused, isGameOver]);
+    // Force immediate lock of the piece
+    const newBoard = mergePiece(board, currentPiece.shape, piecePosition.x, newY);
+    const { clearedBoard, linesCleared } = clearLines(newBoard);
+
+    setBoard(clearedBoard);
+
+    if (linesCleared > 0) {
+      setLines(prev => prev + linesCleared);
+      const points = [40, 100, 300, 1200][linesCleared - 1] * level;
+      setScore(prev => prev + points);
+
+      if (Platform.OS === 'ios') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    }
+
+    setCurrentPiece(null);
+    // Spawn new piece on next render
+    setTimeout(() => spawnPiece(), 0);
+  }, [board, currentPiece, piecePosition, isPaused, isGameOver, level, spawnPiece]);
 
   const lockPiece = useCallback(() => {
     if (!currentPiece) return;
@@ -228,43 +246,110 @@ export default function App() {
     }
   };
 
+  // Add keyboard support for web (moved here after all functions are defined)
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const handleKeyPress = (e) => {
+      if (isGameOver) {
+        if (e.key === 'r' || e.key === 'R') {
+          startNewGame();
+        }
+        return;
+      }
+
+      if (e.key === 'p' || e.key === 'P') {
+        togglePause();
+        return;
+      }
+
+      if (isPaused) return;
+
+      switch(e.key) {
+        case 'ArrowLeft':
+          movePiece(-1, 0);
+          break;
+        case 'ArrowRight':
+          movePiece(1, 0);
+          break;
+        case 'ArrowDown':
+          movePiece(0, 1);
+          break;
+        case 'ArrowUp':
+          rotate();
+          break;
+        case ' ':
+          e.preventDefault();
+          hardDrop();
+          break;
+        case 'r':
+        case 'R':
+          startNewGame();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [movePiece, rotate, hardDrop, togglePause, startNewGame, isPaused, isGameOver]);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
 
-      <View style={styles.header}>
-        <Text style={styles.title}>TETRON</Text>
-      </View>
-
-      <View style={styles.gameContainer}>
-        <View style={styles.sidePanel}>
-          <NextPiece piece={nextPiece} />
-          <Score
-            score={score}
-            lines={lines}
-            level={level}
-            highScore={highScore}
-          />
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>TETRON</Text>
         </View>
 
-        <GameBoard
-          board={board}
-          currentPiece={currentPiece}
-          piecePosition={piecePosition}
-        />
-      </View>
+        <View style={styles.gameContainer}>
+          <View style={styles.sidePanel}>
+            <NextPiece piece={nextPiece} />
+            <Score
+              score={score}
+              lines={lines}
+              level={level}
+              highScore={highScore}
+            />
+          </View>
 
-      <Controls
-        onMoveLeft={() => movePiece(-1, 0)}
-        onMoveRight={() => movePiece(1, 0)}
-        onMoveDown={() => movePiece(0, 1)}
-        onRotate={rotate}
-        onHardDrop={hardDrop}
-        onPause={togglePause}
-        onNewGame={startNewGame}
-        isPaused={isPaused}
-        isGameOver={isGameOver}
-      />
+          <GameBoard
+            board={board}
+            currentPiece={currentPiece}
+            piecePosition={piecePosition}
+          />
+
+          {Platform.OS === 'web' && (
+            <View style={styles.rightPanel}>
+              <View style={styles.keyboardHints}>
+                <Text style={styles.hintsTitle}>KEYBOARD</Text>
+                <Text style={styles.hintText}>← → : Move</Text>
+                <Text style={styles.hintText}>↓ : Soft Drop</Text>
+                <Text style={styles.hintText}>↑ : Rotate</Text>
+                <Text style={styles.hintText}>Space : Hard Drop</Text>
+                <Text style={styles.hintText}>P : Pause</Text>
+                <Text style={styles.hintText}>R : New Game</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        <Controls
+          onMoveLeft={() => movePiece(-1, 0)}
+          onMoveRight={() => movePiece(1, 0)}
+          onMoveDown={() => movePiece(0, 1)}
+          onRotate={rotate}
+          onHardDrop={hardDrop}
+          onPause={togglePause}
+          onNewGame={startNewGame}
+          isPaused={isPaused}
+          isGameOver={isGameOver}
+        />
+      </ScrollView>
 
       {isGameOver && (
         <View style={styles.gameOverOverlay}>
@@ -292,12 +377,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a2e',
   },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: Platform.OS === 'web' ? 20 : 0,
+  },
   header: {
     padding: 10,
     alignItems: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: Platform.OS === 'web' ? 40 : 32,
     fontWeight: 'bold',
     color: '#f39c12',
     letterSpacing: 4,
@@ -305,13 +396,35 @@ const styles = StyleSheet.create({
   gameContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 10,
-    flex: 1,
+    marginBottom: 20,
   },
   sidePanel: {
     marginRight: 10,
     justifyContent: 'flex-start',
-    paddingTop: 20,
+    paddingTop: Platform.OS === 'web' ? 0 : 20,
+  },
+  rightPanel: {
+    marginLeft: 10,
+    justifyContent: 'flex-start',
+  },
+  keyboardHints: {
+    backgroundColor: '#2c3e50',
+    padding: 15,
+    borderRadius: 5,
+    minWidth: 150,
+  },
+  hintsTitle: {
+    color: '#f39c12',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  hintText: {
+    color: '#ecf0f1',
+    fontSize: 12,
+    marginBottom: 5,
   },
   gameOverOverlay: {
     position: 'absolute',

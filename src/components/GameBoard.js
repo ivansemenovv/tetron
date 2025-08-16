@@ -1,9 +1,27 @@
 import React from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions, Platform } from 'react-native';
 import { BOARD_WIDTH, BOARD_HEIGHT } from '../game/gameLogic';
 
-const { width: screenWidth } = Dimensions.get('window');
-const CELL_SIZE = Math.floor((screenWidth - 140) / BOARD_WIDTH);
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Calculate cell size based on platform and screen dimensions
+const calculateCellSize = () => {
+  if (Platform.OS === 'web') {
+    // For web, base cell size on screen height to ensure it fits
+    const maxBoardHeight = screenHeight * 0.6; // Use 60% of screen height for the board
+    const maxBoardWidth = screenWidth * 0.4; // Use 40% of screen width for the board
+
+    const cellByHeight = Math.floor(maxBoardHeight / BOARD_HEIGHT);
+    const cellByWidth = Math.floor(maxBoardWidth / BOARD_WIDTH);
+
+    return Math.min(cellByHeight, cellByWidth, 30); // Cap at 30px for web
+  } else {
+    // For mobile, use the original calculation
+    return Math.floor((screenWidth - 140) / BOARD_WIDTH);
+  }
+};
+
+const CELL_SIZE = calculateCellSize();
 
 const GameBoard = ({ board, currentPiece, piecePosition }) => {
   const renderBoard = () => {

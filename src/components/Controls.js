@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 
 const Controls = ({
   onMoveLeft,
@@ -12,6 +12,31 @@ const Controls = ({
   isPaused,
   isGameOver
 }) => {
+  // On web, only show pause and new game buttons since we have keyboard controls
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.topControls}>
+          <TouchableOpacity
+            style={[styles.controlButton, styles.pauseButton]}
+            onPress={onPause}
+            disabled={isGameOver}
+          >
+            <Text style={styles.buttonText}>{isPaused ? 'RESUME' : 'PAUSE'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.controlButton, styles.newGameButton]}
+            onPress={onNewGame}
+          >
+            <Text style={styles.buttonText}>NEW GAME</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Mobile controls (unchanged)
   return (
     <View style={styles.container}>
       <View style={styles.topControls}>
@@ -133,17 +158,17 @@ const styles = StyleSheet.create({
   },
   pauseButton: {
     backgroundColor: '#f39c12',
-    width: 80,
+    width: Platform.OS === 'web' ? 120 : 80,
     height: 40,
   },
   newGameButton: {
     backgroundColor: '#27ae60',
-    width: 80,
+    width: Platform.OS === 'web' ? 120 : 80,
     height: 40,
   },
   buttonText: {
     color: '#fff',
-    fontSize: 24,
+    fontSize: Platform.OS === 'web' ? 18 : 24,
     fontWeight: 'bold',
   },
 });
