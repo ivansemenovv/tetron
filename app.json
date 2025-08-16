@@ -17,15 +17,18 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ivsemeno.tetris",
-      "buildNumber": "1"
+      "bundleIdentifier": "com.ivsemeno.tetron",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#1a1a2e"
       },
-      "package": "com.ivsemeno.tetris"
+      "package": "com.ivsemeno.tetron"
     },
     "web": {
       "favicon": "./assets/icon.png",
@@ -33,8 +36,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "YOUR_PROJECT_ID_WILL_BE_SET_AUTOMATICALLY"
+        "projectId": "43c0e3aa-3aee-45aa-97f3-fd9dca05b2ea"
       }
-    }
+    },
+    "owner": "ivansemenovv"
   }
 }
