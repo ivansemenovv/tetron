@@ -10,10 +10,10 @@ const calculateCellSize = () => {
     // For web, base cell size on screen height to ensure it fits
     const maxBoardHeight = screenHeight * 0.6; // Use 60% of screen height for the board
     const maxBoardWidth = screenWidth * 0.4; // Use 40% of screen width for the board
-
+    
     const cellByHeight = Math.floor(maxBoardHeight / BOARD_HEIGHT);
     const cellByWidth = Math.floor(maxBoardWidth / BOARD_WIDTH);
-
+    
     return Math.min(cellByHeight, cellByWidth, 30); // Cap at 30px for web
   } else {
     // For mobile, use the original calculation
@@ -26,7 +26,7 @@ const CELL_SIZE = calculateCellSize();
 const GameBoard = ({ board, currentPiece, piecePosition }) => {
   const renderBoard = () => {
     const displayBoard = board.map(row => [...row]);
-
+    
     // Merge current piece with board for display
     if (currentPiece && piecePosition) {
       for (let row = 0; row < currentPiece.shape.length; row++) {
@@ -41,7 +41,7 @@ const GameBoard = ({ board, currentPiece, piecePosition }) => {
         }
       }
     }
-
+    
     return displayBoard.map((row, rowIndex) => (
       <View key={rowIndex} style={styles.row}>
         {row.map((cell, colIndex) => (
@@ -49,14 +49,14 @@ const GameBoard = ({ board, currentPiece, piecePosition }) => {
             key={`${rowIndex}-${colIndex}`}
             style={[
               styles.cell,
-              cell ? { backgroundColor: cell === 1 ? '#888' : cell } : styles.emptyCell
+              cell ? { backgroundColor: typeof cell === 'string' ? cell : '#888' } : styles.emptyCell
             ]}
           />
         ))}
       </View>
     ));
   };
-
+  
   return (
     <View style={styles.board}>
       {renderBoard()}

@@ -5,10 +5,11 @@ import {
   Text,
   TouchableOpacity,
   Dimensions,
-  Alert,
   SafeAreaView,
   Platform,
-  ScrollView
+  Modal,
+  Switch,
+  PanResponder
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
@@ -16,8 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import GameBoard from './src/components/GameBoard';
 import NextPiece from './src/components/NextPiece';
-import Score from './src/components/Score';
-import Controls from './src/components/Controls';
+import DPad from './src/components/DPad';
 import {
   createEmptyGrid,
   createPiece,
@@ -28,7 +28,6 @@ import {
   BOARD_WIDTH,
   BOARD_HEIGHT
 } from './src/game/gameLogic';
-import { TETROMINOS } from './src/game/tetrominos';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -44,8 +43,11 @@ export default function App() {
   const [isGameOver, setIsGameOver] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [dropTime, setDropTime] = useState(1000);
-
+  const [showMenu, setShowMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  
   const gameLoopRef = useRef(null);
+  const boardRef = useRef(null);
 
   // Load high score on mount
   useEffect(() => {
@@ -92,7 +94,7 @@ export default function App() {
     const piece = nextPiece || createPiece();
     const next = createPiece();
     const startX = Math.floor((BOARD_WIDTH - piece.shape[0].length) / 2);
-
+    
     if (!isValidMove(board, piece.shape, startX, 0)) {
       setIsGameOver(true);
       if (Platform.OS === 'ios') {
@@ -100,7 +102,7 @@ export default function App() {
       }
       return false;
     }
-
+    
     setCurrentPiece(piece);
     setPiecePosition({ x: startX, y: 0 });
     setNextPiece(next);
@@ -109,10 +111,10 @@ export default function App() {
 
   const movePiece = useCallback((dx, dy) => {
     if (!currentPiece || isPaused || isGameOver) return false;
-
+    
     const newX = piecePosition.x + dx;
     const newY = piecePosition.y + dy;
-
+    
     if (isValidMove(board, currentPiece.shape, newX, newY)) {
       setPiecePosition({ x: newX, y: newY });
       if (dx !== 0 && Platform.OS === 'ios') {
@@ -120,15 +122,15 @@ export default function App() {
       }
       return true;
     }
-
+    
     return false;
   }, [board, currentPiece, piecePosition, isPaused, isGameOver]);
 
   const rotate = useCallback(() => {
     if (!currentPiece || isPaused || isGameOver) return;
-
+    
     const rotated = rotatePiece(currentPiece.shape);
-
+    
     if (isValidMove(board, rotated, piecePosition.x, piecePosition.y)) {
       setCurrentPiece({ ...currentPiece, shape: rotated });
       if (Platform.OS === 'ios') {
@@ -139,93 +141,92 @@ export default function App() {
 
   const hardDrop = useCallback(() => {
     if (!currentPiece || isPaused || isGameOver) return;
-
+    
     let newY = piecePosition.y;
     while (isValidMove(board, currentPiece.shape, piecePosition.x, newY + 1)) {
       newY++;
     }
-
+    
     const dropDistance = newY - piecePosition.y;
     setPiecePosition({ x: piecePosition.x, y: newY });
     setScore(prev => prev + dropDistance * 2);
-
+    
     if (Platform.OS === 'ios') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     }
-
+    
     // Force immediate lock of the piece
-    const newBoard = mergePiece(board, currentPiece.shape, piecePosition.x, newY);
+    const newBoard = mergePiece(board, currentPiece.shape, piecePosition.x, newY, currentPiece.color);
     const { clearedBoard, linesCleared } = clearLines(newBoard);
-
+    
     setBoard(clearedBoard);
-
+    
     if (linesCleared > 0) {
       setLines(prev => prev + linesCleared);
       const points = [40, 100, 300, 1200][linesCleared - 1] * level;
       setScore(prev => prev + points);
-
+      
       if (Platform.OS === 'ios') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     }
-
+    
     setCurrentPiece(null);
-    // Spawn new piece on next render
     setTimeout(() => spawnPiece(), 0);
   }, [board, currentPiece, piecePosition, isPaused, isGameOver, level, spawnPiece]);
 
   const lockPiece = useCallback(() => {
     if (!currentPiece) return;
-
-    const newBoard = mergePiece(board, currentPiece.shape, piecePosition.x, piecePosition.y);
+    
+    const newBoard = mergePiece(board, currentPiece.shape, piecePosition.x, piecePosition.y, currentPiece.color);
     const { clearedBoard, linesCleared } = clearLines(newBoard);
-
+    
     setBoard(clearedBoard);
-
+    
     if (linesCleared > 0) {
       setLines(l => l + linesCleared);
       const points = [40, 100, 300, 1200][linesCleared - 1] * level;
       setScore(s => s + points);
-
+      
       if (Platform.OS === 'ios') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     }
-
+    
     setCurrentPiece(null);
     spawnPiece();
   }, [board, currentPiece, piecePosition, level, spawnPiece]);
 
   // Game loop
   useEffect(() => {
-    if (isPaused || isGameOver) {
+    if (isPaused || isGameOver || showMenu) {
       if (gameLoopRef.current) {
         clearInterval(gameLoopRef.current);
         gameLoopRef.current = null;
       }
       return;
     }
-
+    
     if (!currentPiece && !isGameOver) {
       spawnPiece();
     }
-
+    
     gameLoopRef.current = setInterval(() => {
       if (!currentPiece) return;
-
+      
       if (!movePiece(0, 1)) {
         lockPiece();
       } else {
-        setScore(s => s + 1); // Soft drop points
+        setScore(s => s + 1);
       }
     }, dropTime);
-
+    
     return () => {
       if (gameLoopRef.current) {
         clearInterval(gameLoopRef.current);
       }
     };
-  }, [currentPiece, isPaused, isGameOver, dropTime, movePiece, lockPiece, spawnPiece]);
+  }, [currentPiece, isPaused, isGameOver, showMenu, dropTime, movePiece, lockPiece, spawnPiece]);
 
   const startNewGame = () => {
     setBoard(createEmptyGrid());
@@ -237,34 +238,96 @@ export default function App() {
     setLevel(1);
     setIsGameOver(false);
     setIsPaused(false);
+    setShowMenu(false);
     setDropTime(1000);
   };
 
   const togglePause = () => {
     if (!isGameOver) {
-      setIsPaused(!isPaused);
+      if (showMenu) {
+        // If menu is showing, close it and unpause
+        setShowMenu(false);
+        setIsPaused(false);
+      } else {
+        // If menu is not showing, open it and pause
+        setShowMenu(true);
+        setIsPaused(true);
+      }
     }
   };
 
-  // Add keyboard support for web (moved here after all functions are defined)
+  const resumeGame = () => {
+    setShowMenu(false);
+    setIsPaused(false);
+  };
+
+  const restart = () => {
+    setShowMenu(false);
+    setIsPaused(false);
+    startNewGame();
+  };
+
+  // Gesture handling for board taps
+  const handleBoardTouch = (evt) => {
+    if (isPaused || isGameOver || showMenu) return;
+    
+    const { locationX, locationY } = evt.nativeEvent;
+    const boardWidth = evt.target._nativeTag && evt.target._nativeTag.width || screenWidth - 20;
+    const boardHeight = evt.target._nativeTag && evt.target._nativeTag.height || screenHeight * 0.6;
+    
+    // Tap on left third - move left
+    if (locationX < boardWidth / 3) {
+      movePiece(-1, 0);
+    }
+    // Tap on right third - move right
+    else if (locationX > (boardWidth * 2) / 3) {
+      movePiece(1, 0);
+    }
+    // Tap in middle - rotate
+    else {
+      rotate();
+    }
+  };
+
+  // Pan responder for swipe gestures
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderRelease: (evt, gestureState) => {
+        if (isPaused || isGameOver || showMenu) return;
+        
+        const { dy } = gestureState;
+        
+        // Swipe up for hard drop
+        if (dy < -50) {
+          hardDrop();
+        }
+      },
+    })
+  ).current;
+
+  // Keyboard support for web
   useEffect(() => {
     if (Platform.OS !== 'web') return;
-
+    
     const handleKeyPress = (e) => {
+      if (showMenu || showSettings) return;
+      
       if (isGameOver) {
         if (e.key === 'r' || e.key === 'R') {
           startNewGame();
         }
         return;
       }
-
-      if (e.key === 'p' || e.key === 'P') {
+      
+      if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
         togglePause();
         return;
       }
-
+      
       if (isPaused) return;
-
+      
       switch(e.key) {
         case 'ArrowLeft':
           movePiece(-1, 0);
@@ -273,14 +336,11 @@ export default function App() {
           movePiece(1, 0);
           break;
         case 'ArrowDown':
-          movePiece(0, 1);
+          hardDrop();
           break;
         case 'ArrowUp':
-          rotate();
-          break;
         case ' ':
-          e.preventDefault();
-          hardDrop();
+          rotate();
           break;
         case 'r':
         case 'R':
@@ -288,85 +348,166 @@ export default function App() {
           break;
       }
     };
-
+    
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [movePiece, rotate, hardDrop, togglePause, startNewGame, isPaused, isGameOver]);
+  }, [movePiece, rotate, hardDrop, togglePause, startNewGame, isPaused, isGameOver, showMenu, showSettings]);
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        bounces={false}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>TETRON</Text>
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>TETRON</Text>
+        <TouchableOpacity onPress={togglePause} style={styles.menuButton}>
+          <Text style={styles.menuIcon}>⚙</Text>
+        </TouchableOpacity>
+      </View>
+      
+      {/* Stats Bar */}
+      <View style={styles.statsBar}>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>Score</Text>
+          <Text style={styles.statValue}>{score.toLocaleString()}</Text>
         </View>
-
-        <View style={styles.gameContainer}>
-          <View style={styles.sidePanel}>
-            <NextPiece piece={nextPiece} />
-            <Score
-              score={score}
-              lines={lines}
-              level={level}
-              highScore={highScore}
-            />
-          </View>
-
-          <GameBoard
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>High</Text>
+          <Text style={styles.statValue}>{highScore.toLocaleString()}</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>Lines</Text>
+          <Text style={styles.statValue}>{lines}</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>Level</Text>
+          <Text style={styles.statValue}>{level}</Text>
+        </View>
+      </View>
+      
+      {/* Game Area */}
+      <View style={styles.gameArea}>
+        <View 
+          style={styles.boardContainer}
+          onTouchEnd={handleBoardTouch}
+          {...panResponder.panHandlers}
+        >
+          <GameBoard 
             board={board}
             currentPiece={currentPiece}
             piecePosition={piecePosition}
           />
-
-          {Platform.OS === 'web' && (
-            <View style={styles.rightPanel}>
-              <View style={styles.keyboardHints}>
-                <Text style={styles.hintsTitle}>KEYBOARD</Text>
-                <Text style={styles.hintText}>← → : Move</Text>
-                <Text style={styles.hintText}>↓ : Soft Drop</Text>
-                <Text style={styles.hintText}>↑ : Rotate</Text>
-                <Text style={styles.hintText}>Space : Hard Drop</Text>
-                <Text style={styles.hintText}>P : Pause</Text>
-                <Text style={styles.hintText}>R : New Game</Text>
-              </View>
-            </View>
-          )}
+          
+          {/* Floating Next Piece */}
+          <View style={styles.floatingNext}>
+            <NextPiece piece={nextPiece} />
+          </View>
         </View>
-
-        <Controls
-          onMoveLeft={() => movePiece(-1, 0)}
-          onMoveRight={() => movePiece(1, 0)}
-          onMoveDown={() => movePiece(0, 1)}
-          onRotate={rotate}
-          onHardDrop={hardDrop}
-          onPause={togglePause}
-          onNewGame={startNewGame}
-          isPaused={isPaused}
-          isGameOver={isGameOver}
+      </View>
+      
+      {/* D-Pad Control */}
+      <View style={styles.controls}>
+        <DPad
+          onLeft={() => movePiece(-1, 0)}
+          onRight={() => movePiece(1, 0)}
+          onUp={() => rotate()}
+          onDown={() => hardDrop()}
+          disabled={isPaused || isGameOver || showMenu}
         />
-      </ScrollView>
-
-      {isGameOver && (
-        <View style={styles.gameOverOverlay}>
-          <View style={styles.gameOverContent}>
-            <Text style={styles.gameOverText}>GAME OVER</Text>
-            <Text style={styles.finalScore}>Score: {score}</Text>
-            {score === highScore && score > 0 && (
-              <Text style={styles.newHighScore}>NEW HIGH SCORE!</Text>
-            )}
-            <TouchableOpacity
-              style={styles.newGameButton}
-              onPress={startNewGame}
+      </View>
+      
+      {/* Menu Modal */}
+      <Modal
+        visible={showMenu}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.menuModal}>
+            <Text style={styles.menuTitle}>PAUSED</Text>
+            
+            <TouchableOpacity style={styles.menuButton} onPress={resumeGame}>
+              <Text style={styles.menuButtonText}>RESUME</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.menuButton} onPress={restart}>
+              <Text style={styles.menuButtonText}>RESTART</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.menuButton} onPress={startNewGame}>
+              <Text style={styles.menuButtonText}>NEW GAME</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.menuButton} 
+              onPress={() => {
+                setShowSettings(true);
+                setShowMenu(false);
+              }}
             >
-              <Text style={styles.newGameButtonText}>NEW GAME</Text>
+              <Text style={styles.menuButtonText}>SETTINGS</Text>
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+      
+      {/* Settings Modal */}
+      <Modal
+        visible={showSettings}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.settingsModal}>
+            <Text style={styles.menuTitle}>SETTINGS</Text>
+            
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Controls</Text>
+              <Text style={styles.settingInfo}>• Tap left/right sides to move</Text>
+              <Text style={styles.settingInfo}>• Tap center to rotate</Text>
+              <Text style={styles.settingInfo}>• Swipe up for hard drop</Text>
+              <Text style={styles.settingInfo}>• Use buttons for precise control</Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.menuButton} 
+              onPress={() => {
+                setShowSettings(false);
+                setShowMenu(true);
+              }}
+            >
+              <Text style={styles.menuButtonText}>BACK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Game Over Modal */}
+      {isGameOver && (
+        <Modal
+          visible={isGameOver}
+          transparent={true}
+          animationType="fade"
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.gameOverModal}>
+              <Text style={styles.gameOverText}>GAME OVER</Text>
+              <Text style={styles.finalScore}>Score: {score}</Text>
+              {score === highScore && score > 0 && (
+                <Text style={styles.newHighScore}>NEW HIGH SCORE!</Text>
+              )}
+              <TouchableOpacity 
+                style={styles.menuButton}
+                onPress={startNewGame}
+              >
+                <Text style={styles.menuButtonText}>NEW GAME</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       )}
     </SafeAreaView>
   );
@@ -377,70 +518,140 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a2e',
   },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: Platform.OS === 'web' ? 20 : 0,
-  },
   header: {
-    padding: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#0f0f1e',
   },
   title: {
-    fontSize: Platform.OS === 'web' ? 40 : 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#f39c12',
-    letterSpacing: 4,
+    letterSpacing: 3,
   },
-  gameContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    paddingHorizontal: 10,
-    marginBottom: 20,
+  menuButton: {
+    padding: 5,
   },
-  sidePanel: {
-    marginRight: 10,
-    justifyContent: 'flex-start',
-    paddingTop: Platform.OS === 'web' ? 0 : 20,
-  },
-  rightPanel: {
-    marginLeft: 10,
-    justifyContent: 'flex-start',
-  },
-  keyboardHints: {
-    backgroundColor: '#2c3e50',
-    padding: 15,
-    borderRadius: 5,
-    minWidth: 150,
-  },
-  hintsTitle: {
-    color: '#f39c12',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  hintText: {
+  menuIcon: {
+    fontSize: 24,
     color: '#ecf0f1',
-    fontSize: 12,
-    marginBottom: 5,
   },
-  gameOverOverlay: {
+  statsBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    backgroundColor: '#2c3e50',
+    paddingVertical: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: '#34495e',
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  statLabel: {
+    color: '#95a5a6',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  statValue: {
+    color: '#ecf0f1',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  statDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#34495e',
+  },
+  gameArea: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingBottom: 100, // Space for controls
+  },
+  boardContainer: {
+    position: 'relative',
+  },
+  floatingNext: {
     position: 'absolute',
-    top: 0,
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(44, 62, 80, 0.9)',
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#34495e',
+  },
+  controls: {
+    position: 'absolute',
+    bottom: 20,
     left: 0,
     right: 0,
-    bottom: 0,
+    paddingHorizontal: 10,
+  },
+  modalOverlay: {
+    flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  gameOverContent: {
+  menuModal: {
     backgroundColor: '#2c3e50',
     padding: 30,
     borderRadius: 10,
     alignItems: 'center',
+    minWidth: 250,
+  },
+  settingsModal: {
+    backgroundColor: '#2c3e50',
+    padding: 30,
+    borderRadius: 10,
+    minWidth: 300,
+  },
+  gameOverModal: {
+    backgroundColor: '#2c3e50',
+    padding: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  menuTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#f39c12',
+    marginBottom: 20,
+  },
+  menuButton: {
+    backgroundColor: '#34495e',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 5,
+    marginVertical: 5,
+    minWidth: 150,
+    alignItems: 'center',
+  },
+  menuButtonText: {
+    color: '#ecf0f1',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  settingRow: {
+    marginBottom: 20,
+  },
+  settingLabel: {
+    color: '#ecf0f1',
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  settingInfo: {
+    color: '#95a5a6',
+    fontSize: 14,
+    marginVertical: 2,
   },
   gameOverText: {
     fontSize: 28,
@@ -457,17 +668,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#f39c12',
     marginBottom: 20,
-    fontWeight: 'bold',
-  },
-  newGameButton: {
-    backgroundColor: '#27ae60',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 5,
-  },
-  newGameButtonText: {
-    color: '#fff',
-    fontSize: 16,
     fontWeight: 'bold',
   },
 });
