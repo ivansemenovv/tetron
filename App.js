@@ -390,33 +390,36 @@ export default function App() {
       
       {/* Game Area */}
       <View style={styles.gameArea}>
-        <View 
-          style={styles.boardContainer}
-          onTouchEnd={handleBoardTouch}
-          {...panResponder.panHandlers}
-        >
-          <GameBoard 
-            board={board}
-            currentPiece={currentPiece}
-            piecePosition={piecePosition}
-          />
+        <View style={styles.gameContainer}>
+          {/* Game Board on the left */}
+          <View 
+            style={styles.boardContainer}
+            onTouchEnd={handleBoardTouch}
+            {...panResponder.panHandlers}
+          >
+            <GameBoard 
+              board={board}
+              currentPiece={currentPiece}
+              piecePosition={piecePosition}
+            />
+            
+            {/* Floating Next Piece */}
+            <View style={styles.floatingNext}>
+              <NextPiece piece={nextPiece} />
+            </View>
+          </View>
           
-          {/* Floating Next Piece */}
-          <View style={styles.floatingNext}>
-            <NextPiece piece={nextPiece} />
+          {/* Controls on the right */}
+          <View style={styles.controlsContainer}>
+            <DPad
+              onLeft={() => movePiece(-1, 0)}
+              onRight={() => movePiece(1, 0)}
+              onUp={() => rotate()}
+              onDown={() => hardDrop()}
+              disabled={isPaused || isGameOver || showMenu}
+            />
           </View>
         </View>
-      </View>
-      
-      {/* D-Pad Control */}
-      <View style={styles.controls}>
-        <DPad
-          onLeft={() => movePiece(-1, 0)}
-          onRight={() => movePiece(1, 0)}
-          onUp={() => rotate()}
-          onDown={() => hardDrop()}
-          disabled={isPaused || isGameOver || showMenu}
-        />
       </View>
       
       {/* Menu Modal */}
@@ -573,10 +576,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 10,
-    paddingBottom: 100, // Space for controls
+  },
+  gameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    gap: 20,
   },
   boardContainer: {
     position: 'relative',
+  },
+  controlsContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   floatingNext: {
     position: 'absolute',
@@ -587,11 +600,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 2,
     borderColor: '#34495e',
-  },
-  controls: {
-    position: 'absolute',
-    bottom: 30,
-    right: 20,
   },
   modalOverlay: {
     flex: 1,
