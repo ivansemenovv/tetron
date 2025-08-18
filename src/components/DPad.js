@@ -4,13 +4,13 @@ import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 const DPad = ({ onLeft, onRight, onUp, onDown, disabled }) => {
   return (
     <View style={styles.container}>
-      <View style={styles.leftSide}>
+      <View style={styles.topRow}>
         <TouchableOpacity
-          style={[styles.button, styles.leftButton]}
-          onPress={onLeft}
+          style={[styles.button, styles.downButton]}
+          onPress={onDown}
           disabled={disabled}
         >
-          <Text style={styles.arrow}>◄</Text>
+          <Text style={styles.arrow}>⇊</Text>
         </TouchableOpacity>
         
         <TouchableOpacity
@@ -22,13 +22,13 @@ const DPad = ({ onLeft, onRight, onUp, onDown, disabled }) => {
         </TouchableOpacity>
       </View>
       
-      <View style={styles.rightSide}>
+      <View style={styles.bottomRow}>
         <TouchableOpacity
-          style={[styles.button, styles.downButton]}
-          onPress={onDown}
+          style={[styles.button, styles.leftButton]}
+          onPress={onLeft}
           disabled={disabled}
         >
-          <Text style={styles.arrow}>⇊</Text>
+          <Text style={styles.arrow}>◄</Text>
         </TouchableOpacity>
         
         <TouchableOpacity
@@ -45,23 +45,21 @@ const DPad = ({ onLeft, onRight, onUp, onDown, disabled }) => {
 
 const styles = StyleSheet.create({
   container: {
+    width: 140,
+    height: 140,
+  },
+  topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    paddingHorizontal: 20,
+    marginBottom: 10,
   },
-  leftSide: {
+  bottomRow: {
     flexDirection: 'row',
-    gap: 10,
-  },
-  rightSide: {
-    flexDirection: 'row',
-    gap: 10,
+    justifyContent: 'space-between',
   },
   button: {
-    width: 60,
-    height: 60,
+    width: 65,
+    height: 65,
     backgroundColor: '#34495e',
     justifyContent: 'center',
     alignItems: 'center',
@@ -81,7 +79,7 @@ const styles = StyleSheet.create({
   },
   arrow: {
     color: '#fff',
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: 'bold',
   },
 });

@@ -590,10 +590,8 @@ const styles = StyleSheet.create({
   },
   controls: {
     position: 'absolute',
-    bottom: 20,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 10,
+    bottom: 30,
+    right: 20,
   },
   modalOverlay: {
     flex: 1,
